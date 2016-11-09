@@ -579,7 +579,7 @@ def layer2dict(layer):
         message = 'There are not valid coordinates for layer id: %s' % layer.id
         logger.error(message)
     else:
-        bbox = [float(layer.bbox_x0), float(layer.bbox_y0), float(layer.bbox_x1), float(layer.bbox_y1)]
+        bbox = get_bbox(layer)
         for proj in layer.service.srs.values():
             if proj['code'] in ('102113', '102100'):
                 bbox = mercator_to_llbbox(bbox)
