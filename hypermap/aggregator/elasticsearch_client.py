@@ -9,7 +9,7 @@ from django.utils.html import strip_tags
 
 from elasticsearch import Elasticsearch
 from shapely.geometry import box
-
+from hypermap.aggregator.utils import get_bbox
 from hypermap.aggregator.utils import mercator_to_llbbox, get_date
 
 REGISTRY_MAPPING_PRECISION = getattr(settings, "REGISTRY_MAPPING_PRECISION", "500m")
@@ -56,36 +56,6 @@ class ESHypermap(object):
             return "Harvard"  # assumption
         return hostname
 
-    @staticmethod
-    def get_bbox(layer):
-        candidate_bbox = layer.bbox_x0, layer.bbox_y0, layer.bbox_x1, layer.bbox_y1
-        if None not in candidate_bbox:
-            coords = [float(coord) for coord in candidate_bbox]
-
-            return coords
-
-        wkt = layer.wkt_geometry
-        # If a coordinate is None and 'POLYGON'
-        if 'POLYGON' in wkt:
-            from shapely.wkt import loads
-            from osgeo import ogr, osr
-
-            source = osr.SpatialReference()
-            source.ImportFromEPSG(3089)
-
-            target = osr.SpatialReference()
-            target.ImportFromEPSG(4326)
-
-            transform = osr.CoordinateTransformation(source, target)
-
-            point = ogr.CreateGeometryFromWkt(wkt)
-            point.Transform(transform)
-
-            wkt = point.ExportToWkt()
-
-            return loads(wkt).bounds
-
-        return (-180.0, -90.0, 180.0, 90.0)
 
     @staticmethod
     def layer_to_es(layer, with_bulk=False):
@@ -94,7 +64,7 @@ class ESHypermap(object):
         LOGGER.info("Elasticsearch: record to save: [%s] %s" % (layer.catalog.slug, layer.id))
 
         try:
-            bbox = ESHypermap.get_bbox(layer)
+            bbox = get_bbox(layer)
             for proj in layer.service.srs.values():
                 if proj['code'] in ('102113', '102100'):
                     bbox = mercator_to_llbbox(bbox)
